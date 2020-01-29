@@ -7,6 +7,9 @@ int main(int argc, char *argv[])
 {
     using array_t = float (&) [XDIM][YDIM];
     
+    // this strangeness is simply to place it on the heap
+    // since it is very large
+    // while still keeping it flattened
     float *uRaw = new float [XDIM*YDIM];
     float *LuRaw = new float [XDIM*YDIM];
     array_t u = reinterpret_cast<array_t>(*uRaw);

@@ -3,7 +3,7 @@
 
 #### Installation (Mac)
 
-```
+```bash
 # install gcc
 brew install gcc
 # install rust https://www.rust-lang.org/tools/install

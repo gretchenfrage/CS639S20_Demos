@@ -152,7 +152,7 @@ fn main() {
         println!("[INFO] listing demos");
         println!("{:#?}", lookup);
     } else {
-        assert_eq!(args.len(), 3, "unexpected num or args");
+        assert_eq!(args.len(), 3, "unexpected num of args");
 
         let major: u32 = args[1].parse().unwrap();
         let minor: u32 = args[2].parse().unwrap();

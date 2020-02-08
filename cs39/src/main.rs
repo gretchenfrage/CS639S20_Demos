@@ -116,7 +116,7 @@ fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     println!("[INFO] compiling");
     println!();
     let status = Command::new("clang++")
-        .args("-std=c++11 -stdlib=libc++ -w".split_whitespace())
+        .args("-std=c++11 -stdlib=libc++ -w -O3".split_whitespace())
         .args(cpp_files(&path))
         .current_dir(&path)
         .status().unwrap();

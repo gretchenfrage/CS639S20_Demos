@@ -10,7 +10,14 @@ use crate::{
         modify_compile,
         Compiled,
     },
-    output::INFO_INDENT,
+    output::{
+        INFO_INDENT,
+        TableWriter,
+    },
+    quant::{
+        subproc,
+        demo_min_time,
+    },
 };
 use std::{
     path::Path,
@@ -22,6 +29,7 @@ use std::{
 };
 use regex::{self, Regex};
 use byte_unit::Byte;
+use serde::Serialize;
 
 /// X or Y.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -90,12 +98,24 @@ pub fn find_dims(
     Ok((found[0].unwrap(), found[1].unwrap()))
 }
 
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct SizeTestRow {
+    x_size: u128,
+    y_size: u128,
+    product_size: u128,
+    data_size_bytes: u128,
+    data_size_string: String,
+    best_time_ms: f64,
+}
+
 /// `size_test` task.
 pub fn run<P>(
     repo: P, 
     lookup: &DemoLookup, 
     major: u32, 
-    minor: u32
+    minor: u32,
+    mut table: TableWriter<SizeTestRow>,
 ) -> Result<(), ()> 
 where
     P: AsRef<Path> 
@@ -181,9 +201,21 @@ where
                 }
             })?;
             
-        let status = Command::new(&binary)
-            .current_dir(&workdir)
-            .status().unwrap();
+        let (status, lines) = subproc(
+            Command::new(&binary)
+                .current_dir(&workdir));
+                
+        let min_time = demo_min_time(&lines);
+        println!("[INFO] best time = {:.2}ms", min_time.as_secs_f64() / 1000.0);   
+
+        table.write(SizeTestRow {
+            x_size: x,
+            y_size: y,
+            product_size: x * y,
+            data_size_bytes: x * y * 4,
+            data_size_string: dim_pretty[i].clone(),
+            best_time_ms: min_time.as_secs_f64() / 1000.0
+        });
             
         println!();
         if !status.success() {

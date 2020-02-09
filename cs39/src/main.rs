@@ -2,6 +2,8 @@ extern crate regex;
 extern crate num_cpus;
 extern crate rand;
 extern crate byte_unit;
+extern crate csv;
+extern crate serde;
 
 use crate::{
     compile::{
@@ -12,7 +14,16 @@ use crate::{
         DemoLookup,
         demo_lookup,
     },
-    output::{Indent, INFO_INDENT},
+    quant::{
+        subproc,
+        demo_min_time,
+    },
+    output::{
+        Indent, 
+        INFO_INDENT,
+        TableWriter,
+        csv_path,
+    },
 };
 use std::{
     env::args,
@@ -20,6 +31,7 @@ use std::{
     path::PathBuf,
     str::FromStr,
 };
+use serde::Serialize;
 
 /// C++ compilation.
 pub mod compile;
@@ -32,6 +44,9 @@ pub mod output;
 
 /// `size_test` task.
 pub mod size_test;
+
+/// Extraction of quantitative data from demos.
+pub mod quant;
 
 /// Extract and parse a regex capture group.
 pub fn cap_parse<T: FromStr>(cap: &regex::Captures, group: &str) -> Option<T> {
@@ -64,8 +79,20 @@ fn cpu_stat() {
     println!("{}", Indent(INFO_INDENT, ""));
 }
 
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+struct CpuTestRow {
+    threads: u32,
+    best_time_ms: f64,
+}
+
 /// `cpu_task` test.
-fn cpu_test(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
+fn cpu_test(
+    lookup: &DemoLookup, 
+    major: u32, 
+    minor: u32, 
+    mut table: TableWriter<CpuTestRow>
+) -> Result<(), ()> {
     let Compiled { workdir, binary } = compile(lookup, major, minor)?;
     
     cpu_stat();
@@ -75,10 +102,19 @@ fn cpu_test(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     
     for cpu in min_cpu..=max_cpu {
         println!("[INFO] benchmarking with {} thread", cpu);
-        let status = Command::new(&binary)
-            .current_dir(&workdir)
-            .env("OMP_NUM_THREADS", cpu.to_string())
-            .status().unwrap();
+        let (status, lines) = subproc(
+            Command::new(&binary)
+                .current_dir(&workdir)
+                .env("OMP_NUM_THREADS", cpu.to_string()));
+            
+        let min_time = demo_min_time(&lines);
+        println!("[INFO] best time = {:.2}ms", min_time.as_secs_f64() / 1000.0);   
+        
+        table.write(CpuTestRow {
+            threads: cpu as _,
+            best_time_ms: min_time.as_secs_f64() / 1000.0
+        });
+         
         println!();
         if !status.success() {
             println!("[ERROR] exit code {}", status.code().unwrap());
@@ -113,6 +149,24 @@ pub fn get_version(args: &[String]) -> (u32, u32) {
     (major, minor)
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum VersionQuery {
+    Version(u32, u32),
+    AllInMajor(u32),
+}
+
+pub fn get_version_query(args: &[String]) -> VersionQuery {
+    assert!(args.len() >= 4, "unexpected num of args");
+
+    let major: u32 = args[2].parse().unwrap();
+    if args[3] == "all" {
+        VersionQuery::AllInMajor(major)
+    } else {       
+        let minor: u32 = args[3].parse().unwrap();
+        VersionQuery::Version(major, minor)
+    }
+}
+
 fn main() {
     let args: Vec<String> = args().collect();
     
@@ -140,14 +194,40 @@ fn main() {
             let (major, minor) = get_version(&args);
             let _ = run_demo(&lookup, major, minor);
         },
-        "cpu_test" => {
-            let (major, minor) = get_version(&args);
-            let _ = cpu_test(&lookup, major, minor);
+        "cpu_test" => match get_version_query(&args) {
+            VersionQuery::Version(major, minor) => {
+                let csv_name = format!("cpu_test_{}_{}.csv", major, minor);
+                let table = TableWriter::csv_file(csv_path(&csv_name));
+            
+                let _ = cpu_test(&lookup, major, minor, table);
+            },
+            VersionQuery::AllInMajor(major) => {
+                for &minor in lookup[&major].demos.keys() {
+                    println!("[INFO] testing demo {}-{}", major, minor);
+                    let csv_name = format!("cpu_test_{}_{}.csv", major, minor);
+                    let table = TableWriter::csv_file(csv_path(&csv_name));
+            
+                    let _ = cpu_test(&lookup, major, minor, table);
+                }
+            }
         },
-        "size_test" => {
-            let (major, minor) = get_version(&args);
-            let _ = size_test::run(&repo, &lookup, major, minor);
-        }
+        "size_test" => match get_version_query(&args) {
+            VersionQuery::Version(major, minor) => {
+                let csv_name = format!("size_test_{}_{}.csv", major, minor);
+                let table = TableWriter::csv_file(csv_path(&csv_name));
+            
+                let _ = size_test::run(&repo, &lookup, major, minor, table);
+            },
+            VersionQuery::AllInMajor(major) => {
+                for &minor in lookup[&major].demos.keys() {
+                    println!("[INFO] testing demo {}-{}", major, minor);
+                    let csv_name = format!("size_test_{}_{}.csv", major, minor);
+                    let table = TableWriter::csv_file(csv_path(&csv_name));
+            
+                    let _ = size_test::run(&repo, &lookup, major, minor, table);
+                }
+            }
+        },
         _ => {
             println!(include_str!("../manual.txt"));
         },

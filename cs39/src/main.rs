@@ -4,6 +4,7 @@ extern crate rand;
 extern crate byte_unit;
 use std::{
     env::args,
+    mem::replace,
     str::FromStr,
     path::{PathBuf, Path},
     collections::{BTreeMap, HashMap},
@@ -19,7 +20,7 @@ use std::{
 };
 use regex::{Regex};
 use rand::prelude::*;
-use byte_unit::{Byte, ByteUnit};
+use byte_unit::Byte;
 
 fn subdirs<P: AsRef<Path>>(path: P) -> impl Iterator<Item=PathBuf> {
     read_dir(path).unwrap()
@@ -335,7 +336,7 @@ fn parse_dim_line(dim: Dim, line: &str) -> Option<u128> {
         .map(|caps| cap_parse::<u128>(&caps, "n").unwrap())
 }
 
-fn format_dim_line(dim: Dim, val: u32) -> String {
+fn format_dim_line(dim: Dim, val: u128) -> String {
     format!(
         r##"#define {}DIM {}"##,
         match dim {
@@ -396,7 +397,7 @@ where
         let base = base_x * base_y;
         let mut curr = base;
         
-        let incr = 2;
+        let incr = 1;
         
         for _ in 0..10 {
             if (curr >> incr) >= (1 << 12) {
@@ -433,67 +434,54 @@ where
     };
     
     println!("[INFO] testing with dimensions:");
-    for (x, y) in dim_seq {
+    let mut dim_pretty = Vec::new();
+    for &(x, y) in &dim_seq {
         let data_size = x * y * 4;
         let data_size_str = Byte::from_bytes(data_size)
             .get_appropriate_unit(true)
             .format(0);
-        println!("{} • {}×{} = {}", INFO_INDENT, x, y, data_size_str);
+        let dim_pretty_curr = format!("{}×{} = {}", x, y, data_size_str);
+        println!("{} • {}", INFO_INDENT, dim_pretty_curr);
+        dim_pretty.push(dim_pretty_curr);
     }
     
-    Ok(())
-    
-    /*
-    // x and y size
-    let (base_x, base_y) = {
-        println!("[INFO] looking for default XDIM, YDIM");
+    for (i, &(x, y)) in dim_seq.iter().enumerate() {
+        println!("[INFO] benchmarking dimension {}", &dim_pretty[i]);
         
-        let subdir = lookup.get(&major)
-            .ok_or_else(|| {
-                eprintln!("[ERROR] major version {} not found", major);
-                eprintln!("        available: {:?}", 
-                    lookup.keys().copied().collect::<Vec<u32>>());
-            })?;
-        let path = subdir.demos.get(&minor)
-            .ok_or_else(|| {
-                eprintln!("[ERROR] minor version {} not found in {:?}", 
-                    minor, subdir.subdir_path);
-                eprintln!("        available: {:?}",
-                    subdir.demos.keys().copied().collect::<Vec<u32>>());
-            })?;
-            
-        let header_file = path.join("Laplacian.h");
-        let header_content = read_to_string(&header_file)
-            .unwrap();
-            
-        let pat_x = format!(
-            r#"^{}[[:space:]]+(?P<n>\d+)[[:space:]]*$"#,
-            escape(r##"#define XDIM"##),
-        );
-        let pat_x = Regex::new(pat_x).unwrap();
-        
-        let pat_y = format!(
-            r#"^{}[[:space:]]+(?P<n>\d+)[[:space:]]*$"#,
-            escape(r##"#define YDIM"##),
-        );
-        let pat_y = Regex::new(pat_y).unwrap();
-        
-        let mut found_x: Option<u128> = None;
-        let mut found_y: Option<u128> = None;
-        
-        for line in header_content.lines {
-            if let Some(x) = cap_parse(&pat_x.capture(line), "n") {
-                if found_x.is_some() {
-                    println!("[]")
+        let Compiled { workdir, binary } = modify_compile(
+            &repo, lookup, major, minor, 
+            |code: &mut HashMap<OsString, String>| {
+                for (file, content) in replace(code, HashMap::new()) {
+                    let rewritten: String = content.lines()
+                        .map(|line: &str| {
+                            let mut line = line.to_owned();
+                            if parse_dim_line(Dim::X, &line).is_some() {
+                                line = format_dim_line(Dim::X, x);
+                            } else if parse_dim_line(Dim::Y, &line).is_some() {
+                                line = format_dim_line(Dim::Y, y);
+                            }
+                            line.push('\n');
+                            line
+                        })
+                        .collect();
+                    code.insert(file, rewritten);
                 }
-            }
-            if let Some(y) = cap_parse(&pat_y.capture(line), "n") {
-                
-            }
+            })?;
+            
+        let status = Command::new(&binary)
+            .current_dir(&workdir)
+            .status().unwrap();
+            
+        println!();
+        if !status.success() {
+            println!("[ERROR] exit code {}", status.code().unwrap());
+            return Err(());
         }
-        
-    };
-    */
+    }
+    
+    println!("[INFO] done");
+    
+    Ok(())
 }
 
 fn get_version(args: &[String]) -> (u32, u32) {

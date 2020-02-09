@@ -120,21 +120,33 @@ fn compile(lookup: &DemoLookup, major: u32, minor: u32) -> Result<Compiled, ()> 
                 subdir.demos.keys().copied().collect::<Vec<u32>>());
         })?;
     
-    println!("[INFO] compiling");
+    #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
+    #[allow(dead_code)]
+    enum Compiler {
+        ClangPp,
+        // https://stackoverflow.com/questions/3178342/compiling-a-c-program-with-gcc#3206195
+        Gcc9,
+    }
+    
+    let compiler = Compiler::Gcc9;
+    
+    println!("[INFO] compiling with {:?}", compiler);
     println!();
-    /*
-    let status = Command::new("clang++")
-        .args("-std=c++11 -stdlib=libc++ -w -O3".split_whitespace())
-        .args(cpp_files(&path))
-        .current_dir(&path)
-        .status().unwrap();
-    */
-    let status = Command::new("gcc-9")
-        .args("-x c++ -fopenmp -w -O3 ".split_whitespace())
-        .args(cpp_files(&path))
-        .arg("-lstdc++")
-        .current_dir(&path)
-        .status().unwrap();
+    
+    let status = match compiler {
+        Compiler::ClangPp => Command::new("clang++")
+            .args("-std=c++11 -stdlib=libc++ -w -O3".split_whitespace())
+            .args(cpp_files(&path))
+            .current_dir(&path)
+            .status().unwrap(),
+        Compiler::Gcc9 => Command::new("gcc-9")
+            .args("-x c++ -fopenmp -w -O3 ".split_whitespace())
+            .args(cpp_files(&path))
+            .arg("-lstdc++")
+            .current_dir(&path)
+            .status().unwrap(),
+    };
+    
     if !status.success() {
         eprintln!();
         eprintln!("[ERROR] compile failure {}", status.code().unwrap());
@@ -161,8 +173,39 @@ fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     Ok(())
 }
 
+fn cpu_stat() {
+    use std::fmt::{self, Display, Formatter};
+    struct Indent<'a, I: Display>(&'a str, I);
+    impl<'a, I: Display> Display for Indent<'a, I> {
+        fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+            let string = format!("{}", self.1);
+            let mut first = true;
+            for line in string.lines() {
+                if first {
+                    first = false;
+                } else {
+                    f.write_str("\n")?;
+                }
+                f.write_str(self.0)?;
+                f.write_str(line)?;
+            }
+            Ok(())
+        }
+    }
+    
+    println!("[INFO] cpu info:");
+    println!("{}", Indent("       ", ""));
+    println!("{}", Indent("       ", 
+        format_args!("LOGICAL CPUS = {}", num_cpus::get())));
+    println!("{}", Indent("       ", 
+        format_args!("PHYSICAL CPUS = {}", num_cpus::get_physical())));
+    println!("{}", Indent("       ", ""));
+}
+
 fn hw1(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     let Compiled { workdir, binary } = compile(lookup, major, minor)?;
+    
+    cpu_stat();
     
     let min_cpu = 1;
     let max_cpu = num_cpus::get();
@@ -182,16 +225,6 @@ fn hw1(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     
     println!("[INFO] done");
     
-    /*
-    println!("[INFO] running");
-    println!();
-    let status = Command::new(path.join("a.out"))
-        .current_dir(&path)
-        .status().unwrap();
-    println!();
-    println!("[INFO] exit {}", status.code().unwrap());
-    */
-    
     Ok(())
 } 
 
@@ -202,6 +235,17 @@ fn get_version(args: &[String]) -> (u32, u32) {
     let minor: u32 = args[3].parse().unwrap();
     
     (major, minor)
+}
+
+fn reinstall() {
+    println!("[INFO] recompiling cs39 cli");
+    let _ = Command::new("cargo")
+        .arg("install")
+        .arg("--path")
+        .arg(env!("CARGO_MANIFEST_DIR"))
+        .arg("--force")
+        .status();
+    println!();
 }
 
 fn main() {
@@ -220,6 +264,12 @@ fn main() {
         "list" => {
             println!("[INFO] listing demos");
             println!("{:#?}", lookup);
+        },
+        "reinstall" => {
+            reinstall();
+        },
+        "stat" => {
+            cpu_stat();
         },
         "run" => {
             let (major, minor) = get_version(&args);

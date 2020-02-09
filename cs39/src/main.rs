@@ -1,4 +1,5 @@
 extern crate regex;
+extern crate num_cpus;
 use std::{
     env::args,
     str::FromStr,
@@ -98,7 +99,13 @@ fn demo_lookup<P: AsRef<Path>>(repo: P) -> DemoLookup {
     lookup
 }
 
-fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
+struct Compiled {
+    workdir: PathBuf,
+    binary: PathBuf,
+}
+
+/// Compile code, get path to binary.
+fn compile(lookup: &DemoLookup, major: u32, minor: u32) -> Result<Compiled, ()> {
     let subdir = lookup.get(&major)
         .ok_or_else(|| {
             eprintln!("[ERROR] major version {} not found", major);
@@ -115,9 +122,17 @@ fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     
     println!("[INFO] compiling");
     println!();
+    /*
     let status = Command::new("clang++")
         .args("-std=c++11 -stdlib=libc++ -w -O3".split_whitespace())
         .args(cpp_files(&path))
+        .current_dir(&path)
+        .status().unwrap();
+    */
+    let status = Command::new("gcc-9")
+        .args("-x c++ -fopenmp -w -O3 ".split_whitespace())
+        .args(cpp_files(&path))
+        .arg("-lstdc++")
         .current_dir(&path)
         .status().unwrap();
     if !status.success() {
@@ -126,6 +141,48 @@ fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
         return Err(());
     }
     
+    Ok(Compiled {
+        workdir: path.clone(),
+        binary: path.join("a.out")
+    })
+}
+
+fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
+    let Compiled { workdir, binary } = compile(lookup, major, minor)?;
+    
+    println!("[INFO] running");
+    println!();
+    let status = Command::new(&binary)
+        .current_dir(&workdir)
+        .status().unwrap();
+    println!();
+    println!("[INFO] exit {}", status.code().unwrap());
+    
+    Ok(())
+}
+
+fn hw1(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
+    let Compiled { workdir, binary } = compile(lookup, major, minor)?;
+    
+    let min_cpu = 1;
+    let max_cpu = num_cpus::get();
+    
+    for cpu in min_cpu..=max_cpu {
+        println!("[INFO] benchmarking with {} thread", cpu);
+        let status = Command::new(&binary)
+            .current_dir(&workdir)
+            .env("OMP_NUM_THREADS", cpu.to_string())
+            .status().unwrap();
+        println!();
+        if !status.success() {
+            println!("[FAIL] exit code {}", status.code().unwrap());
+            return Err(());
+        }
+    }
+    
+    println!("[INFO] done");
+    
+    /*
     println!("[INFO] running");
     println!();
     let status = Command::new(path.join("a.out"))
@@ -133,8 +190,18 @@ fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
         .status().unwrap();
     println!();
     println!("[INFO] exit {}", status.code().unwrap());
+    */
     
     Ok(())
+} 
+
+fn get_version(args: &[String]) -> (u32, u32) {
+    assert_eq!(args.len(), 4, "unexpected num of args");
+
+    let major: u32 = args[2].parse().unwrap();
+    let minor: u32 = args[3].parse().unwrap();
+    
+    (major, minor)
 }
 
 fn main() {
@@ -146,17 +213,24 @@ fn main() {
         
     let lookup = demo_lookup(&repo);
     
-    if let Some("--help") = args.get(1).map(String::as_str) {
-        println!(include_str!("../manual.txt"));
-    } else if let Some("--list") = args.get(1).map(String::as_str) {
-        println!("[INFO] listing demos");
-        println!("{:#?}", lookup);
-    } else {
-        assert_eq!(args.len(), 3, "unexpected num of args");
-
-        let major: u32 = args[1].parse().unwrap();
-        let minor: u32 = args[2].parse().unwrap();
-    
-        let _ = run_demo(&lookup, major, minor);
+    match args[1].as_str() {
+        "help" => {
+            println!(include_str!("../manual.txt"));
+        },
+        "list" => {
+            println!("[INFO] listing demos");
+            println!("{:#?}", lookup);
+        },
+        "run" => {
+            let (major, minor) = get_version(&args);
+            let _ = run_demo(&lookup, major, minor);
+        },
+        "hw1" => {
+            let (major, minor) = get_version(&args);
+            let _ = hw1(&lookup, major, minor);
+        },
+        _ => {
+            println!(include_str!("../manual.txt"));
+        },
     }
 }

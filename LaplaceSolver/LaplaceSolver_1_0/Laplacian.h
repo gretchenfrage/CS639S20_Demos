@@ -1,9 +1,5 @@
 #pragma once
 
-#include "CSRMatrix.h"
 #include "Parameters.h"
 
-CSRMatrix BuildLaplacianMatrix();
-
-void ComputeLaplacian(CSRMatrix& laplacianMatrix,
-    const float (&u)[XDIM][YDIM][ZDIM], float (&Lu)[XDIM][YDIM][ZDIM]);
+void ComputeLaplacian(const float (&u)[XDIM][YDIM][ZDIM], float (&Lu)[XDIM][YDIM][ZDIM]);

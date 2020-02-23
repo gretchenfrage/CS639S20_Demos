@@ -1,9 +1,10 @@
-#include "ConjugateGradients.h"
-#include "Laplacian.h"
 #include "Timer.h"
-#include "Utilities.h"
 
-Timer timerLaplacian;
+#include "Laplacian.h"
+#include "Utilities.h"
+#include "PointwiseOps.h"
+#include "Reductions.h"
+
 
 int main(int argc, char *argv[])
 {
@@ -20,24 +21,46 @@ int main(int argc, char *argv[])
     array_t p = reinterpret_cast<array_t>(*pRaw);
     array_t r = reinterpret_cast<array_t>(*rRaw);
     array_t z = reinterpret_cast<array_t>(*zRaw);
-    
-    CSRMatrix matrix1;
-    CSRMatrix matrix2;
 
+    Timer timer;
+    
     // Initialization
     {
-        Timer timer;
         timer.Start();
         InitializeProblem(x, f);
-        matrix1 = BuildLaplacianMatrix(); // This takes a while ...
-        matrix2 = BuildLaplacianMatrixNoBoundary(); // This takes a while ...
+        WriteAsImage("x", x, 0, 0, 127);
+        Clear(p);
+        Clear(r);
+        Clear(z);
         timer.Stop("Initialization : ");
     }
 
-    // Call Conjugate Gradients algorithm
-    timerLaplacian.Reset();
-    ConjugateGradients(matrix1, matrix2, x, f, p, r, z, false);
-    timerLaplacian.Print("Total Laplacian Time : ");
+    // Conjugate Gradients iteration
+    {
+        ComputeLaplacian(x, z);
+        Saxpy(z, f, r, -1);
+        Copy(r, p);
+        float rho=InnerProduct(r,r);
+        float rho_old, convergence_norm=0;
+        
+        for(int iterations=0;;iterations++)
+        {
+            convergence_norm=Norm(r);
+            std::cout << "Norm = " << convergence_norm << std::endl;
+            
+            rho=InnerProduct(r,r);
+            if(iterations>0)
+                Saxpy(p, r, p, rho/rho_old);
+            
+            ComputeLaplacian(p, z);
+            float p_dot_z=InnerProduct(p, z);
+            float alpha=rho/p_dot_z;
+            Saxpy(p, x, x, alpha);
+            Saxpy(z, r, r, -alpha);
+            rho_old=rho;
+            WriteAsImage("x", x, iterations, 0, 127);
+        }
+    }
 
     return 0;
 }

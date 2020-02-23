@@ -1,12 +1,17 @@
+#include "ConjugateGradients.h"
 #include "Laplacian.h"
-#include "Parameters.h"
 #include "PointwiseOps.h"
 #include "Reductions.h"
 #include "Utilities.h"
+#include "Timer.h"
 
 #include <iostream>
 
+extern Timer timerLaplacian;
+
 void ConjugateGradients(
+    CSRMatrix& matrix1,
+    CSRMatrix& matrix2,
     float (&x)[XDIM][YDIM][ZDIM],
     const float (&f)[XDIM][YDIM][ZDIM],
     float (&p)[XDIM][YDIM][ZDIM],
@@ -15,7 +20,7 @@ void ConjugateGradients(
     const bool writeIterations)
 {
     // Algorithm : Line 2
-    ComputeLaplacian(x, z);
+    timerLaplacian.Restart(); ComputeLaplacian(matrix1, x, z); timerLaplacian.Pause();
     Saxpy(z, f, r, -1);
     float nu = Norm(r);
 
@@ -32,7 +37,7 @@ void ConjugateGradients(
         std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
 
         // Algorithm : Line 6
-        ComputeLaplacian(p, z);
+        timerLaplacian.Restart(); ComputeLaplacian(matrix2, p, z, true); timerLaplacian.Pause();
         float sigma=InnerProduct(p, z);
 
         // Algorithm : Line 7
@@ -66,4 +71,5 @@ void ConjugateGradients(
 
         if (writeIterations) WriteAsImage("x", x, k, 0, 127);
     }
+
 }

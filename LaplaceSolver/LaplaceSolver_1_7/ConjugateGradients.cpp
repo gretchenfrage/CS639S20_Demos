@@ -87,6 +87,8 @@ void ConjugateGradients(
             p[i2+1][j2+1][k2+1] += f[i3][j3][k3];
         }
         
+        bufs.b[i][j][k] = p[1][1][1];
+        
         nu = max(nu, abs(p[1][1][1]));
         rho += ((double) p[1][1][1]) * ((double) p[1][1][1]);
         
@@ -102,8 +104,42 @@ void ConjugateGradients(
         sigma += ((double) z) * ((double) p[1][1][1]);
     }
     
-    cout << "Done, nu=" << to_string(nu) << ", rho=" << to_string(rho) << ", sigma=" << to_string(sigma) << endl;
+    if (nu < nuMax) { return; }
     
+    for (int iterations=0;; iterations++) 
+    {
+        bufs.swap();
+        
+        float new_nu = 0.;
+        double new_rho = 0.;
+        double new_sigma = 0.;
+        
+#pragma omp parallel for reduction(max:new_nu) reduction(+:new_rho) reduction(+:new_sigma)
+        for (int i = 1; i < XDIM-1; i++)
+        for (int j = 1; j < YDIM-1; j++)
+        for (int k = 1; k < ZDIM-1; k++)
+        {
+            float z = 
+                -6 * buf.a[i  ][j  ][k  ]
+                   + buf.a[i+1][j  ][k  ]
+                   + buf.a[i-1][j  ][k  ]
+                   + buf.a[i  ][j+1][k  ]
+                   + buf.a[i  ][j-1][k  ]
+                   + buf.a[i  ][j  ][k+1]
+                   + buf.a[i  ][j  ][k-1];
+            new_sigma += ((double) buf.a[i][j][k]) * ((double) z);
+            
+            float alpha = rho / sigma;
+            float r_inter = z * -alpha + buf.a[i][j][k];
+            
+            new_nu = max(new_nu, abs(r_inter);
+            new_rho += ((double) r_inter) * ((double) r_inter);
+            
+            
+        }
+    }
+    
+    //cout << "Done, nu=" << to_string(nu) << ", rho=" << to_string(rho) << ", sigma=" << to_string(sigma) << endl;
     
     
     /*

@@ -37,11 +37,11 @@ pub fn run(
     
     let Compiled { workdir, binary } = compile(lookup, major, minor)?;
     
+    println!("[INFO] running");
     let (status, lines) = subproc(
         Command::new(&binary)
-        //Command::new("cat").arg("output.txt")
             .current_dir(&workdir)
-            .env("OMP_NUM_THREADS", cpu.to_string()));
+            .env("OMP_NUM_THREADS", cpu.to_string()), true);
             
     if !status.success() {
         println!("[ERROR] exit code {}", status.code().unwrap());
@@ -79,11 +79,6 @@ pub fn run(
     println!();
     println!("[INFO] displaying kernel times:");
     println!();
-    /*
-    for (name, time) in &sums {
-        println!("       {} = {:.3}s", name, time.as_secs_f32());
-    }
-    */
     {
         let mut times: Vec<(&str, Duration)> = sums.iter().map(|(s, &d)| (s.as_str(), d)).collect();
         times.sort_by_key(|&(_, d)| -(d.as_millis() as i128));

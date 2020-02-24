@@ -203,7 +203,7 @@ where
             
         let (status, lines) = subproc(
             Command::new(&binary)
-                .current_dir(&workdir));
+                .current_dir(&workdir), false);
                 
         let min_time = demo_min_time(&lines);
         println!("[INFO] best time = {:.2}ms", min_time.as_secs_f64() / 1000.0);   

@@ -41,7 +41,7 @@ where
 /// elevate its stdout and stderr to the parent while
 /// also merging them together into a line stream,
 /// then collecting them.
-pub fn subproc<B>(mut command: B) -> (ExitStatus, Vec<String>) 
+pub fn subproc<B>(mut command: B, quiet: bool) -> (ExitStatus, Vec<String>) 
 where
     B: BorrowMut<Command>,
 {
@@ -62,6 +62,8 @@ where
     let stderr = Box::new(stderr) as Box<dyn Read + Send>;
     
     let mut threads = Vec::new();
+    
+    
     for (read, send) in vec![
         (stdout, send_0),
         (stderr, send_1),
@@ -70,7 +72,7 @@ where
             let read = BufReader::new(read);
             for line in read.lines() {
                 let line = line.unwrap();
-                println!("{}", line);
+                if !quiet { println!("{}", line); }
                 let _ = send.send(line);
             }
         });

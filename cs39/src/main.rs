@@ -108,7 +108,7 @@ fn cpu_test(
         let (status, lines) = subproc(
             Command::new(&binary)
                 .current_dir(&workdir)
-                .env("OMP_NUM_THREADS", cpu.to_string()));
+                .env("OMP_NUM_THREADS", cpu.to_string()), false);
             
         let min_time = demo_min_time(&lines);
         println!("[INFO] best time = {:.2}ms", min_time.as_secs_f64() / 1000.0);   
@@ -235,9 +235,11 @@ fn main() {
             let version = (1, 2);
             println!("[INFO] implicitly testing demo {:?}", version);
             
+            let multithreaded: bool = args[2].parse().unwrap();
+            
             let (major, minor) = version;
             
-            let _ = kernel_sum_test::run(&lookup, major, minor, false);
+            let _ = kernel_sum_test::run(&lookup, major, minor, multithreaded);
         }
         _ => {
             println!(include_str!("../manual.txt"));

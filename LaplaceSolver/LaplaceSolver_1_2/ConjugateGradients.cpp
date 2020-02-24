@@ -61,8 +61,8 @@ void ConjugateGradients(
         rho=rho_new;
 
         // Algorithm : Line 16
-        Saxpy(p, x, x, alpha, 16, "1st");
-        Saxpy(p, r, p, beta, 16, "2nd");
+        Saxpy(p, x, x, alpha, 16, "1st ");
+        Saxpy(p, r, p, beta, 16, "2nd ");
 
         if (writeIterations) WriteAsImage("x", x, k, 0, 127);
     }

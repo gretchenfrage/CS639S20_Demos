@@ -35,7 +35,7 @@ float InnerProduct(const float (&x)[XDIM][YDIM][ZDIM], const float (&y)[XDIM][YD
     for (int k = 1; k < ZDIM-1; k++)
         result += (double) x[i][j][k] * (double) y[i][j][k];
 
-    timer.Stop("KERNEL InnerProduct() on line  " + std::to_string(line) + " : Time = ");
+    timer.Stop("KERNEL InnerProduct() on line " + std::to_string(line) + " : Time = ");
 
     return (float) result;
 }

@@ -48,6 +48,9 @@ pub mod size_test;
 /// Extraction of quantitative data from demos.
 pub mod quant;
 
+/// `kernel_sum_test` task.
+pub mod kernel_sum_test;
+
 /// Extract and parse a regex capture group.
 pub fn cap_parse<T: FromStr>(cap: &regex::Captures, group: &str) -> Option<T> {
     cap.name(group).and_then(|m| m.as_str().parse().ok())
@@ -228,6 +231,14 @@ fn main() {
                 }
             }
         },
+        "kernel_sum_test" => {
+            let version = (1, 2);
+            println!("[INFO] implicitly testing demo {:?}", version);
+            
+            let (major, minor) = version;
+            
+            let _ = kernel_sum_test::run(&lookup, major, minor, false);
+        }
         _ => {
             println!(include_str!("../manual.txt"));
         },

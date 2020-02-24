@@ -23,7 +23,7 @@ pub fn parse_elapsed_time_line(line: &str) -> Option<Duration> {
     pat
         .captures(line)
         .map(|caps| cap_parse::<f64>(&caps, "ms").unwrap())
-        .map(|ms| Duration::from_secs_f64(ms * 1000.0))
+        .map(|ms| Duration::from_secs_f64(ms / 1000.0))
 }
 
 pub fn demo_min_time<I, L>(lines: I) -> Duration 

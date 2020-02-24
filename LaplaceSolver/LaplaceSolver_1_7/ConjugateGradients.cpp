@@ -47,8 +47,9 @@ void ConjugateGradients(
     
     float nu = 0.;
     double rho = 0.;
+    double sigma = 0.;
             
-#pragma omp parallel for reduction(max:nu) reduction(+:rho)
+#pragma omp parallel for reduction(max:nu) reduction(+:rho) reduction(+:sigma)
     for (int i = 1; i < XDIM-1; i++)
     for (int j = 1; j < YDIM-1; j++)
     for (int k = 1; k < ZDIM-1; k++)
@@ -88,9 +89,20 @@ void ConjugateGradients(
         
         nu = max(nu, abs(p[1][1][1]));
         rho += ((double) p[1][1][1]) * ((double) p[1][1][1]);
+        
+        float z = 
+            -6 * p[1][1][1]
+               + p[0][1][1]
+               + p[2][1][1]
+               + p[1][0][1]
+               + p[1][2][1]
+               + p[1][1][0]
+               + p[1][1][2];
+        
+        sigma += ((double) z) * ((double) p[1][1][1]);
     }
     
-    cout << "Done, nu=" << to_string(nu) << ", rho=" << to_string(rho) << endl;
+    cout << "Done, nu=" << to_string(nu) << ", rho=" << to_string(rho) << ", sigma=" << to_string(sigma) << endl;
     
     
     

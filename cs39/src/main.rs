@@ -8,6 +8,7 @@ extern crate serde;
 use crate::{
     compile::{
         compile,
+        dbg_compile,
         Compiled,
     },
     navigate::{
@@ -64,9 +65,18 @@ pub fn run_demo(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
     println!();
     let status = Command::new(&binary)
         .current_dir(&workdir)
-        .status().unwrap();
+        .status().expect("no status");
     println!();
-    println!("[INFO] exit {}", status.code().unwrap());
+    println!("[INFO] exit {:?}", status.code());
+    
+    Ok(())
+}
+
+/// `dbg_make` task.
+pub fn dbg_make(lookup: &DemoLookup, major: u32, minor: u32) -> Result<(), ()> {
+    let Compiled { workdir: _, binary } = dbg_compile(lookup, major, minor)?;
+    
+    println!("[INFO] built debug binary to {:?}", binary);
     
     Ok(())
 }
@@ -197,6 +207,10 @@ fn main() {
             let (major, minor) = get_version(&args);
             let _ = run_demo(&lookup, major, minor);
         },
+        "debug_make" => {
+            let (major, minor) = get_version(&args);
+            let _ = dbg_make(&lookup, major, minor);
+        }
         "cpu_test" => match get_version_query(&args) {
             VersionQuery::Version(major, minor) => {
                 let csv_name = format!("cpu_test_{}_{}.csv", major, minor);

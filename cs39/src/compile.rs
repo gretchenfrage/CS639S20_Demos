@@ -68,6 +68,33 @@ impl Compiler {
     }
 }
 
+
+/// Compile code, get path to binary.
+pub fn dbg_compile(lookup: &DemoLookup, major: u32, minor: u32) -> Result<Compiled, ()> {
+    let path = find_demo(lookup, major, minor)?;
+
+    println!("[INFO] debug-building");
+    println!();
+    
+    let status = Command::new("gcc-9")
+                .args("-x c++ -fopenmp -w -g ".split_whitespace())
+                .args(cpp_files(&path))
+                .arg("-lstdc++")
+                .current_dir(&path)
+                .status().unwrap();
+
+    if !status.success() {
+        eprintln!();
+        eprintln!("[ERROR] compile failure {}", status.code().unwrap());
+        return Err(());
+    }
+    
+    Ok(Compiled {
+        workdir: path.clone(),
+        binary: path.join("a.out")
+    })
+}
+
 /// Compile code, get path to binary.
 pub fn compile(lookup: &DemoLookup, major: u32, minor: u32) -> Result<Compiled, ()> {
     let path = find_demo(lookup, major, minor)?;

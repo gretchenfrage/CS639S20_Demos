@@ -23,18 +23,38 @@ void ConjugateGradients(
     if (nu < nuMax) return;
         
     // Algorithm : Line 4
-    Copy(r, p, 4);
     float rho=InnerProduct(p, r, 4);
-        
+
     // Beginning of loop from Line 5
     for(int k=0;;k++)
     {
+        std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
         
-        
-
+        /*
         // Algorithm : Line 6
+        double sigma_ = 0.;
+#pragma omp parallel for reduction(+:sigma_)
+        for (int i = 1; i < XDIM-1; i++)
+        for (int j = 1; j < YDIM-1; j++)
+        for (int k = 1; k < ZDIM-1; k++)
+        {
+            float lap =
+                -6 * p[i][j][k]
+                   + p[i+1][j][k]
+                   + p[i-1][j][k]
+                   + p[i][j+1][k]
+                   + p[i][j-1][k]
+                   + p[i][j][k+1]
+                   + p[i][j][k-1];
+            z[i][j][k] = lap;
+            sigma_ += ((double) p[i][j][k]) * ((double) lap);
+        }
+        float sigma = (float) sigma_;
+        */
+        
         ComputeLaplacian(p, z, 6);
         float sigma=InnerProduct(p, z, 6);
+        
 
         // Algorithm : Line 7
         float alpha=rho/sigma;

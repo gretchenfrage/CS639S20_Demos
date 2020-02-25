@@ -33,8 +33,26 @@ void ConjugateGradients(
         
 
         // Algorithm : Line 6
-        ComputeLaplacian(p, z, 6);
-        float sigma=InnerProduct(p, z, 6);
+        double sigma_ = 0.;
+#pragma omp parallel for reduction(+:sigma_)
+        for (int i_ = 1; i_ < XDIM-1; i_++)
+        for (int j_ = 1; j_ < YDIM-1; j_++)
+        for (int k_ = 1; k_ < ZDIM-1; k_++)
+        {
+            float lap =
+                -6 * p[i_][j_][k_]
+                   + p[i_+1][j_][k_]
+                   + p[i_-1][j_][k_]
+                   + p[i_][j_+1][k_]
+                   + p[i_][j_-1][k_]
+                   + p[i_][j_][k_+1]
+                   + p[i_][j_][k_-1];
+            z[i_][j_][k_] = lap;
+            sigma_ += ((double) p[i_][j_][k_]) * ((double) lap);
+        }
+        float sigma = (float) sigma_;
+        //ComputeLaplacian(p, z, 6);
+        //float sigma=InnerProduct(p, z, 6);
 
         // Algorithm : Line 7
         float alpha=rho/sigma;

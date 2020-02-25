@@ -53,7 +53,8 @@ void ConjugateGradients(
     for (int j = 1; j < YDIM-1; j++)
     for (int k = 1; k < ZDIM-1; k++)
     {
-        float p[3][3][3];
+        float z[3][3][3];
+        float r[3][3][3];
         
         int i2j2k2[7][3] = {
             {  0,  0,  0 },
@@ -74,7 +75,7 @@ void ConjugateGradients(
             int k3 = k2 + k;
             
             // l18
-            p[i2+1][j2+1][k2+1] = 
+            z[i2+1][j2+1][k2+1] = 
                 -6 * x[i3][j3][k3]
                 + x[min(i3+1, XDIM-1)][j3               ][k3               ]
                 + x[max(i3-1, 0)     ][j3               ][k3               ]
@@ -83,14 +84,35 @@ void ConjugateGradients(
                 + x[i3               ][j3               ][min(k3+1, ZDIM-1)]
                 + x[i3               ][j3               ][max(k3-1, 0)     ];
             
+            r[i2+1][k2+1][j2+1] = z[i2+1][j2+1][k2+1] * -1 + f[max(min(i3, XDIM-1), 0)][max(min(j3, YDIM-1), 0)][max(min(k3, ZDIM-1), 0)];
+            
+            /*
             // l19
+            r = []
             p[i2+1][j2+1][k2+1] *= -1;
             p[i2+1][j2+1][k2+1] += f[i3][j3][k3];
+            */
         }
         
-        // l18 -> buf
-        bufs.b[i][j][k] = p[1][1][1];
+        //float r = z[1][1][1] * -1 + f[i][j][k];
         
+        nu = max(nu, abs(r[1][1][1]));
+        
+        // l18 -> buf
+        bufs.b[i][j][k] = z[1][1][1];
+        rho += ((double) r[1][1][1]) * ((double) r[1][1][1]);
+        
+        float z2 = 
+            -6 * r[1][1][1]
+               + r[0][1][1]
+               + r[2][1][1]
+               + r[1][0][1]
+               + r[1][2][1]
+               + r[1][1][0]
+               + r[1][1][2];
+        
+        sigma += ((double) r[1][1][1]) * ((double) z2);
+        /*
         // l20
         nu = max(nu, abs(p[1][1][1]));
         
@@ -109,6 +131,7 @@ void ConjugateGradients(
         
         // l36, pre-loop
         sigma += ((double) z) * ((double) p[1][1][1]);
+        */
     }
     
     // l23 CTRL
@@ -120,6 +143,10 @@ void ConjugateGradients(
         
         // l39 post-loop
         float alpha = rho / sigma;
+
+        cout << "alpha=" << to_string(alpha) << endl;
+        cout << "rho=" << to_string(rho) << endl;
+        cout << "sigma=" << to_string(sigma) << endl;
     
         nu = 0.;
         double rho_new = 0.;
@@ -161,7 +188,7 @@ void ConjugateGradients(
             return;
         }
         
-        std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
+        std::cout << "Residual norm (nu) after " << iterations << " iterations = " << nu << std::endl;
         
         // l58 post-loop
         float beta = rho_new / rho;
@@ -202,9 +229,6 @@ void ConjugateGradients(
         // and THIS is also part of the post-loop actually
         if (writeIterations) { WriteAsImage("x", x, iterations, 0, 127); }
         
-        rho = rho_new;
-        
-        // swap buffers
-        bufs.swap();       
+        rho = rho_new;    
     }
 }

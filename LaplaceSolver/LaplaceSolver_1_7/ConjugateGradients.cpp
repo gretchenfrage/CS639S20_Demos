@@ -37,15 +37,14 @@ struct DoubleBuffer
 };
 
 void ConjugateGradients(
-    const float (&x)[XDIM][YDIM][ZDIM],
-    const float (&f)[XDIM][YDIM][ZDIM],
-    const bool writeIterations)
+    float (&x)[XDIM][YDIM][ZDIM],
+    float (&f)[XDIM][YDIM][ZDIM],
+    bool writeIterations)
 {
     DoubleBuffer bufs;
     
-    int D = 0;
-    
     float nu = 0.;
+    
     double rho = 0.;
     double sigma = 0.;
             
@@ -74,6 +73,7 @@ void ConjugateGradients(
             int j3 = j2 + j;
             int k3 = k2 + k;
             
+            // l18
             p[i2+1][j2+1][k2+1] = 
                 -6 * x[i3][j3][k3]
                 + x[min(i3+1, XDIM-1)][j3               ][k3               ]
@@ -83,15 +83,21 @@ void ConjugateGradients(
                 + x[i3               ][j3               ][min(k3+1, ZDIM-1)]
                 + x[i3               ][j3               ][max(k3-1, 0)     ];
             
+            // l19
             p[i2+1][j2+1][k2+1] *= -1;
             p[i2+1][j2+1][k2+1] += f[i3][j3][k3];
         }
         
+        // l18 -> buf
         bufs.b[i][j][k] = p[1][1][1];
         
+        // l20
         nu = max(nu, abs(p[1][1][1]));
+        
+        // l27
         rho += ((double) p[1][1][1]) * ((double) p[1][1][1]);
         
+        // l35, pre-loop
         float z = 
             -6 * p[1][1][1]
                + p[0][1][1]
@@ -101,99 +107,105 @@ void ConjugateGradients(
                + p[1][1][0]
                + p[1][1][2];
         
+        // l36, pre-loop
         sigma += ((double) z) * ((double) p[1][1][1]);
     }
     
+    // l23 CTRL
     if (nu < nuMax) { return; }
+    /* 
+    float alpha = ((float) rho) / ((float) sigma);
+    */
     
     for (int iterations=0;; iterations++) 
     {
         bufs.swap();
         
-        float new_nu = 0.;
-        double new_rho = 0.;
-        double new_sigma = 0.;
-        
-#pragma omp parallel for reduction(max:new_nu) reduction(+:new_rho) reduction(+:new_sigma)
+        // l39 post-loop
+        float alpha = rho / sigma;
+    
+        nu = 0.;
+        double rho_new = 0.;
+    
+#pragma omp parallel for reduction(max:nu) reduction(+:rho_new)
         for (int i = 1; i < XDIM-1; i++)
         for (int j = 1; j < YDIM-1; j++)
         for (int k = 1; k < ZDIM-1; k++)
         {
+            // l35, pre/post-loop (redundant CPU)
             float z = 
-                -6 * buf.a[i  ][j  ][k  ]
-                   + buf.a[i+1][j  ][k  ]
-                   + buf.a[i-1][j  ][k  ]
-                   + buf.a[i  ][j+1][k  ]
-                   + buf.a[i  ][j-1][k  ]
-                   + buf.a[i  ][j  ][k+1]
-                   + buf.a[i  ][j  ][k-1];
-            new_sigma += ((double) buf.a[i][j][k]) * ((double) z);
+                -6 * bufs.a[i  ][j  ][k  ]
+                   + bufs.a[i+1][j  ][k  ]
+                   + bufs.a[i-1][j  ][k  ]
+                   + bufs.a[i  ][j+1][k  ]
+                   + bufs.a[i  ][j-1][k  ]
+                   + bufs.a[i  ][j  ][k+1]
+                   + bufs.a[i  ][j  ][k-1];
             
-            float alpha = rho / sigma;
-            float r_inter = z * -alpha + buf.a[i][j][k];
-            
-            new_nu = max(new_nu, abs(r_inter);
-            new_rho += ((double) r_inter) * ((double) r_inter);
-            
-            
+            // l42, pre/post-loop (redundant CPU)
+            float m = z * -alpha + m;
+            // l43, post-loop
+            nu = max(nu, abs(m));
+            // l55, post-loop
+            rho_new += ((double) m) * ((double) m);
         }
-    }
-    
-    //cout << "Done, nu=" << to_string(nu) << ", rho=" << to_string(rho) << ", sigma=" << to_string(sigma) << endl;
-    
-    
-    /*
-    // Algorithm : Line 2
-    ComputeLaplacian(x, z, 2);
-    Saxpy(z, f, r, -1, 2);
-    float nu = Norm(r, 2);
-
-    // Algorithm : Line 3
-    if (nu < nuMax) return;
         
-    // Algorithm : Line 4
-    Copy(r, p, 4);
-    float rho=InnerProduct(p, r, 4);
-        
-    // Beginning of loop from Line 5
-    for(int k=0;;k++)
-    {
-        std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
-
-        // Algorithm : Line 6
-        ComputeLaplacian(p, z, 6);
-        float sigma=InnerProduct(p, z, 6);
-
-        // Algorithm : Line 7
-        float alpha=rho/sigma;
-
-        // Algorithm : Line 8
-        Saxpy(z, r, r, -alpha, 8);
-        nu=Norm(r, 8);
-
-        // Algorithm : Lines 9-12
-        if (nu < nuMax || k == kMax) {
-            Saxpy(p, x, x, alpha, 10);
-            std::cout << "Conjugate Gradients terminated after " << k << " iterations; residual norm (nu) = " << nu << std::endl;
-            if (writeIterations) WriteAsImage("x", x, k, 0, 127);
+        // l46 CTRL
+        if (nu < nuMax || iterations == kMax) {
+#pragma omp parallel for
+            for (int i = 1; i < XDIM-1; i++)
+            for (int j = 1; j < YDIM-1; j++)
+            for (int k = 1; k < ZDIM-1; k++)
+            {
+                x[i][j][k] = bufs.a[i][j][k] * alpha + x[i][j][k];
+            }
+            std::cout << "Conjugate Gradients terminated after " << iterations << " iterations; residual norm (nu) = " << nu << std::endl;
+            if (writeIterations) WriteAsImage("x", x, iterations, 0, 127);
             return;
         }
+        
+        // l58 post-loop
+        float beta = rho_new / rho;
+        
+        
+        // reponsibilities of pre-loop
+        //  - initialize rho and sigma
+        //  - write to p
+        
+        sigma = 0.;
+#pragma omp parallel for reduction(+:sigma)
+        for (int i = 1; i < XDIM-1; i++)
+        for (int j = 1; j < YDIM-1; j++)
+        for (int k = 1; k < ZDIM-1; k++)
+        {
+            // l35, pre/post-loop (redundant CPU)
+            float z = 
+                -6 * bufs.a[i  ][j  ][k  ]
+                   + bufs.a[i+1][j  ][k  ]
+                   + bufs.a[i-1][j  ][k  ]
+                   + bufs.a[i  ][j+1][k  ]
+                   + bufs.a[i  ][j-1][k  ]
+                   + bufs.a[i  ][j  ][k+1]
+                   + bufs.a[i  ][j  ][k-1];
             
-        // Algorithm : Line 13
-        Copy(r, z, 13);
-        float rho_new = InnerProduct(z, r, 13);
-
-        // Algorithm : Line 14
-        float beta = rho_new/rho;
-
-        // Algorithm : Line 15
-        rho=rho_new;
-
-        // Algorithm : Line 16
-        Saxpy(p, x, x, alpha, 16, "1st ");
-        Saxpy(p, r, p, beta, 16, "2nd ");
-
-        if (writeIterations) WriteAsImage("x", x, k, 0, 127);
+            // l42, pre/post-loop (redundant CPU)
+            float m = z * -alpha + m;
+            
+            // BUT these lines are actually part of the post-loop
+            // l64
+            x[i][j][k] = bufs.a[i][j][k] * alpha + x[i][j][k];
+            // l65
+            bufs.b[i][j][k] = bufs.a[i][j][k] * beta + m;
+            
+            sigma += ((double) bufs.a[i][j][k]) * ((double) z);
+        }
+        
+        // and THIS is also part of the post-loop actually
+        if (writeIterations) { WriteAsImage("x", x, iterations, 0, 127); }
+        
+        rho = rho_new;
+        
+        // swap buffers
+        bufs.swap();       
     }
-    */
 }

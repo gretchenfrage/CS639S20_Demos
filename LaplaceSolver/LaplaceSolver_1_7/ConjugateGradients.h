@@ -3,7 +3,6 @@
 #include "Parameters.h"
 
 void ConjugateGradients(
-    const float (&x)[XDIM][YDIM][ZDIM],
-    const float (&f)[XDIM][YDIM][ZDIM],
-    const bool writeIterations = true);
-
+    float (&x)[XDIM][YDIM][ZDIM],
+    float (&f)[XDIM][YDIM][ZDIM],
+    bool writeIterations = true);

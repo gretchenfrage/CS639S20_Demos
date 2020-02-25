@@ -98,7 +98,7 @@ pub fn run(
             print!(" ");
             let bars: u32 = ((d.as_millis() as f64 / max_millis as f64) * max_bars as f64) as u32;
             for _ in 0..bars {
-                print!("=");
+                print!("█");
             }
             println!();
         }

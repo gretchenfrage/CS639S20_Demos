@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     Timer timer;
     timer.Start();
         
-    ConjugateGradients(x, f, false);
+    ConjugateGradients(x, f, true);
     
     timer.Stop("Entire Run : ");
     

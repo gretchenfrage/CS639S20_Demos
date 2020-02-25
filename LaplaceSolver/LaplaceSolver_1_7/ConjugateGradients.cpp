@@ -113,9 +113,6 @@ void ConjugateGradients(
     
     // l23 CTRL
     if (nu < nuMax) { return; }
-    /* 
-    float alpha = ((float) rho) / ((float) sigma);
-    */
     
     for (int iterations=0;; iterations++) 
     {
@@ -163,6 +160,8 @@ void ConjugateGradients(
             if (writeIterations) WriteAsImage("x", x, iterations, 0, 127);
             return;
         }
+        
+        std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
         
         // l58 post-loop
         float beta = rho_new / rho;

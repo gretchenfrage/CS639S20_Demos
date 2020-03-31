@@ -44,6 +44,8 @@ pub enum Compiler {
     ClangPp,
     // https://stackoverflow.com/questions/3178342/compiling-a-c-program-with-gcc#3206195
     Gcc9,
+    // this seems to be the default installed in my arch linux
+    Gcc,
 }
 
 /// Try to compile code in a subdirectory.
@@ -64,6 +66,12 @@ impl Compiler {
                 .arg("-lstdc++")
                 .current_dir(&path)
                 .status().unwrap(),
+            Compiler::Gcc => Command::new("gcc")
+                .args("-x c++ -fopenmp -w -O3 ".split_whitespace())
+                .args(cpp_files(&path))
+                .arg("-lstdc++")
+                .current_dir(&path)
+                .status().unwrap(),
         }
     }
 }
@@ -72,7 +80,7 @@ impl Compiler {
 pub fn compile(lookup: &DemoLookup, major: u32, minor: u32) -> Result<Compiled, ()> {
     let path = find_demo(lookup, major, minor)?;
     
-    let compiler = Compiler::Gcc9;
+    let compiler = Compiler::Gcc;
     
     println!("[INFO] compiling with {:?}", compiler);
     println!();

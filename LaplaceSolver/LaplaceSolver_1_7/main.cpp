@@ -1,6 +1,8 @@
 #include "ConjugateGradients.h"
+#include "Laplacian.h"
 #include "Timer.h"
 #include "Utilities.h"
+#include "MatVecMultiply.h"
 
 int main(int argc, char *argv[])
 {
@@ -18,16 +20,30 @@ int main(int argc, char *argv[])
     array_t r = reinterpret_cast<array_t>(*rRaw);
     array_t z = reinterpret_cast<array_t>(*zRaw);
     
+    CSRMatrix matrix;
+    CSRMatrix L;
+
     // Initialization
     {
         Timer timer;
         timer.Start();
         InitializeProblem(x, f);
+        matrix = BuildLaplacianMatrix(); // This takes a while ...
+        L = BuildPreconditionerMatrix(); // This takes a while ...
+
+        // Make sure that the preconditioner is a valid lower-triangular CSR matrix ...
+        L.CheckLowerTriangular();
+        
         timer.Stop("Initialization : ");
     }
 
     // Call Conjugate Gradients algorithm
-    ConjugateGradients(x, f, p, r, z);
-    
+    {	
+        Timer timer;
+        timer.Start();
+        ConjugateGradients(matrix, L, x, f, p, r, z, true);
+        timer.Stop("Preconditioned Conjugate Gradients : ");
+    }
+
     return 0;
 }

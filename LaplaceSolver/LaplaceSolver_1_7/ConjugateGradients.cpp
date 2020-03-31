@@ -1,15 +1,15 @@
+#include "ConjugateGradients.h"
 #include "Laplacian.h"
-#include "Parameters.h"
 #include "PointwiseOps.h"
 #include "Reductions.h"
+#include "Substitutions.h"
 #include "Utilities.h"
-#include "Timer.h"
 
 #include <iostream>
 
-extern Timer timerLaplacian;
-
 void ConjugateGradients(
+    CSRMatrix& matrix,
+    CSRMatrix& L,
     float (&x)[XDIM][YDIM][ZDIM],
     const float (&f)[XDIM][YDIM][ZDIM],
     float (&p)[XDIM][YDIM][ZDIM],
@@ -18,15 +18,17 @@ void ConjugateGradients(
     const bool writeIterations)
 {
     // Algorithm : Line 2
-    timerLaplacian.Restart(); ComputeLaplacian(x, z); timerLaplacian.Pause();
+    ComputeLaplacian(matrix, x, z);
     Saxpy(z, f, r, -1);
     float nu = Norm(r);
 
     // Algorithm : Line 3
     if (nu < nuMax) return;
-        
+
     // Algorithm : Line 4
     Copy(r, p);
+    ForwardSubstitution(L, &p[0][0][0]);
+    BackwardSubstitution(L, &p[0][0][0]);
     float rho=InnerProduct(p, r);
         
     // Beginning of loop from Line 5
@@ -35,7 +37,7 @@ void ConjugateGradients(
         std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
 
         // Algorithm : Line 6
-        timerLaplacian.Restart(); ComputeLaplacian(p, z); timerLaplacian.Pause();
+        ComputeLaplacian(matrix, p, z);
         float sigma=InnerProduct(p, z);
 
         // Algorithm : Line 7
@@ -52,9 +54,11 @@ void ConjugateGradients(
             if (writeIterations) WriteAsImage("x", x, k, 0, 127);
             return;
         }
-            
+
         // Algorithm : Line 13
         Copy(r, z);
+        ForwardSubstitution(L, &z[0][0][0]);
+        BackwardSubstitution(L, &z[0][0][0]);
         float rho_new = InnerProduct(z, r);
 
         // Algorithm : Line 14
@@ -65,9 +69,9 @@ void ConjugateGradients(
 
         // Algorithm : Line 16
         Saxpy(p, x, x, alpha);
-        Saxpy(p, r, p, beta);
+        Saxpy(p, z, p, beta);
 
-        if (writeIterations) WriteAsImage("x", x, k, 0, 127);
+        if (writeIterations) WriteAsImage("x", x, k, 0, XDIM/2);
     }
 
 }

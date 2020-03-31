@@ -5,6 +5,7 @@
 
 void ConjugateGradients(
     CSRMatrix& matrix,
+    CSRMatrix& L,
     float (&x)[XDIM][YDIM][ZDIM],
     const float (&f)[XDIM][YDIM][ZDIM],
     float (&p)[XDIM][YDIM][ZDIM],

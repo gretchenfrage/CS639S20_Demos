@@ -4,6 +4,7 @@
 #include "Utilities.h"
 
 Timer timerLaplacian;
+Timer timerSaxpy;
 
 int main(int argc, char *argv[])
 {
@@ -22,6 +23,7 @@ int main(int argc, char *argv[])
     array_t z = reinterpret_cast<array_t>(*zRaw);
     
     CSRMatrix matrix;
+    CSRMatrix L;
 
     // Initialization
     {
@@ -29,13 +31,21 @@ int main(int argc, char *argv[])
         timer.Start();
         InitializeProblem(x, f);
         matrix = BuildLaplacianMatrix(); // This takes a while ...
+        L = BuildPreconditionerMatrix(); // This takes a while ...
+
+        // Make sure that the preconditioner is a valid lower-triangular CSR matrix ...
+        L.CheckLowerTriangular();
+        
         timer.Stop("Initialization : ");
     }
 
     // Call Conjugate Gradients algorithm
-    timerLaplacian.Reset();
-    ConjugateGradients(matrix, x, f, p, r, z, false);
+    {	
+    timerLaplacian.Reset(); timerSaxpy.Reset();
+    ConjugateGradients(matrix, L, x, f, p, r, z, true);
     timerLaplacian.Print("Total Laplacian Time : ");
+    timerSaxpy.Print("Total Saxpy Time : ");
+    }
 
     return 0;
 }

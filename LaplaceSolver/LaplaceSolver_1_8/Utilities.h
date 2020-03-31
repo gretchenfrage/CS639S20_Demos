@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Parameters.h"
+
 #include <string>
 
 void Clear(float (&x)[XDIM][YDIM][ZDIM]);

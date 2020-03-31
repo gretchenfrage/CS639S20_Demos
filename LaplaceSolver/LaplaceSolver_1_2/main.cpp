@@ -1,9 +1,6 @@
 #include "ConjugateGradients.h"
-#include "Laplacian.h"
 #include "Timer.h"
 #include "Utilities.h"
-
-Timer timerLaplacian;
 
 int main(int argc, char *argv[])
 {
@@ -21,23 +18,16 @@ int main(int argc, char *argv[])
     array_t r = reinterpret_cast<array_t>(*rRaw);
     array_t z = reinterpret_cast<array_t>(*zRaw);
     
-    CSRMatrix matrix1;
-    CSRMatrix matrix2;
-
     // Initialization
     {
         Timer timer;
         timer.Start();
         InitializeProblem(x, f);
-        matrix1 = BuildLaplacianMatrix(); // This takes a while ...
-        matrix2 = BuildLaplacianMatrixLowerTriangular(); // This takes a while ...
         timer.Stop("Initialization : ");
     }
 
     // Call Conjugate Gradients algorithm
-    timerLaplacian.Reset();
-    ConjugateGradients(matrix1, matrix2, x, f, p, r, z, false);
-    timerLaplacian.Print("Total Laplacian Time : ");
-
+    ConjugateGradients(x, f, p, r, z);
+    
     return 0;
 }

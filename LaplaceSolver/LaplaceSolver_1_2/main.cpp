@@ -27,7 +27,12 @@ int main(int argc, char *argv[])
     }
 
     // Call Conjugate Gradients algorithm
-    ConjugateGradients(x, f, p, r, z);
+    Timer timer;
+    timer.Start();
+    
+    ConjugateGradients(x, f, p, r, z, false);
+    
+    timer.Stop("Entire Run : ");
     
     return 0;
 }

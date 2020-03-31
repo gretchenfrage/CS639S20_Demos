@@ -21,7 +21,7 @@ pub type DemoLookup = BTreeMap::<u32, Subdir>;
 
 /// Read the demo directory structure.
 pub fn demo_lookup<P: AsRef<Path>>(repo: P) -> DemoLookup {
-    let pat = r#"^[[:alnum:]]+_(?P<major>\d+)_(?P<minor>\d+)$"#;
+    let pat = r#"^[_[[:alnum:]]]+_(?P<major>\d+)_(?P<minor>\d+)$"#;
     let pat = Regex::new(pat).unwrap();
     
     let mut lookup = DemoLookup::new();

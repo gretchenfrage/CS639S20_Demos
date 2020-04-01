@@ -12,11 +12,20 @@ void MatMatMultiply(const float (&A)[MATRIX_SIZE][MATRIX_SIZE],
     auto blockB = reinterpret_cast<const_blocked_matrix_t>(B[0][0]);
     auto blockC = reinterpret_cast<blocked_matrix_t>(C[0][0]);
 
+    /*
+    // phoenix note: this looks incorrect
 #pragma omp parallel for
     for (int i = 0; i < NBLOCKS; i++)
     for (int j = 0; j < NBLOCKS; j++)
         C[i][j] = 0.;
-    
+    */
+
+    // corrected code:
+#pragma omp parallel for
+    for (int i = 0; i < MATRIX_SIZE; i++)
+    for (int j = 0; j < MATRIX_SIZE; j++)
+        C[i][j] = 0.;
+
     for (int bi = 0; bi < NBLOCKS; bi++)
     for (int bj = 0; bj < NBLOCKS; bj++)
         for (int bk = 0; bk < NBLOCKS; bk++) {

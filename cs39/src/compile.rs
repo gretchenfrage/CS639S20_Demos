@@ -10,6 +10,7 @@ use std::{
         create_dir_all,
         FileType
     },
+    env,
     collections::HashMap,
     process::{
         Command,
@@ -46,6 +47,8 @@ pub enum Compiler {
     Gcc9,
     // this seems to be the default installed in my arch linux
     Gcc,
+    // try to get MKL working
+    GccMkl,
 }
 
 /// Try to compile code in a subdirectory.
@@ -72,7 +75,25 @@ impl Compiler {
                 .arg("-lstdc++")
                 .current_dir(&path)
                 .status().unwrap(),
+            Compiler::GccMkl => {
+                let mklroot = env::var("MKLROOT")
+                    .expect("missing required env var MKLROOT");
+                Command::new("gcc")
+                    .args(format!(
+                        "-x c++ -fopenmp -w -O3 -m64 -I{}/include",
+                        mklroot).split_whitespace())
+                    .args(cpp_files(&path))
+                    .args(format!(
+                        " -lstdc++  -L${}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_gnu_thread -lmkl_core -lgomp -lpthread -lm -ldl",
+                        mklroot).split_whitespace())
+                    .current_dir(&path)
+                    .status().unwrap()
+            },
         }
+
+        /*
+        gcc -x c++ -fopenmp -w -O3 -m64 -I${MKLROOT}/include *.cpp *.h -lstdc++  -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_gnu_thread -lmkl_core -lgomp -lpthread -lm -ldl
+        */
     }
 }
 
@@ -80,7 +101,7 @@ impl Compiler {
 pub fn compile(lookup: &DemoLookup, major: u32, minor: u32) -> Result<Compiled, ()> {
     let path = find_demo(lookup, major, minor)?;
     
-    let compiler = Compiler::Gcc;
+    let compiler = Compiler::GccMkl;
     
     println!("[INFO] compiling with {:?}", compiler);
     println!();

@@ -7,6 +7,7 @@
 #include "Timer.h"
 
 #include <iostream>
+#include "changes.h"
 
 extern Timer timerLaplacian;
 extern Timer timerSaxpy;
@@ -26,8 +27,6 @@ void ComputeLaplacian2(const float (&u)[XDIM][YDIM][ZDIM], float (&Lu)[XDIM][YDI
             + u[i][j][k+1]
             + u[i][j][k-1];
 }
-
-#define CHANGES true
 
 void ComputeLaplacianImpl(
     CSRMatrix& matrix,

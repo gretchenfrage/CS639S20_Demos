@@ -12,7 +12,7 @@ void MatVecMultiply(CSRMatrix& mat, const float *x, float *y)
     const auto columnIndices = mat.GetColumnIndices();
     const auto values = mat.GetValues();
 
-#ifdef DO_NOT_USE_MKL
+#ifdef DO_NOT_USE_MKL 
 #pragma omp parallel for
     for (int i = 0; i < N; i++)
     {
@@ -23,6 +23,8 @@ void MatVecMultiply(CSRMatrix& mat, const float *x, float *y)
         }
     }
 #else
+    // my intel mkl implementation said that this was called wrongly and panicked
+    
     mkl_cspblas_scsrgemv( // (S)parse (CSR) (Ge)neral matrix (M)atrix-(V)ector product
         "N",              // Use the normal matrix, not its transpose
         &N,               // Size of the matrix

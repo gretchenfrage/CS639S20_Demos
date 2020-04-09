@@ -27,6 +27,21 @@ void ComputeLaplacian2(const float (&u)[XDIM][YDIM][ZDIM], float (&Lu)[XDIM][YDI
             + u[i][j][k-1];
 }
 
+#define CHANGES true
+
+void ComputeLaplacianImpl(
+    CSRMatrix& matrix,
+    const float (&u)[XDIM][YDIM][ZDIM],
+    float (&Lu)[XDIM][YDIM][ZDIM])
+{
+    timerLaplacian.Restart();
+    if (CHANGES) {
+        ComputeLaplacian2(u, Lu);
+    } else {
+        ComputeLaplacian(matrix, u, Lu);
+    }
+    timerLaplacian.Pause();
+}
 
 void ConjugateGradients(
     CSRMatrix& matrix,
@@ -38,16 +53,8 @@ void ConjugateGradients(
     float (&z)[XDIM][YDIM][ZDIM],
     const bool writeIterations)
 {
-    bool changes = true;
-
     // Algorithm : Line 2
-    timerLaplacian.Restart();
-    if (changes) {
-        ComputeLaplacian2(x, z);
-    } else {
-        ComputeLaplacian(matrix, x, z);
-    }
-    timerLaplacian.Pause();
+    ComputeLaplacianImpl(matrix, x, z);
     //timerLaplacian.Restart(); ComputeLaplacian(matrix, x, z); timerLaplacian.Pause();
     Saxpy(z, f, r, -1);
     float nu = Norm(r);
@@ -67,7 +74,8 @@ void ConjugateGradients(
         std::cout << "Residual norm (nu) after " << k << " iterations = " << nu << std::endl;
 
         // Algorithm : Line 6
-        timerLaplacian.Restart(); ComputeLaplacian(matrix, p, z); timerLaplacian.Pause();
+        //timerLaplacian.Restart(); ComputeLaplacian(matrix, p, z); timerLaplacian.Pause();
+        ComputeLaplacianImpl(matrix, p, z);
         float sigma=InnerProduct(p, z);
 
         // Algorithm : Line 7

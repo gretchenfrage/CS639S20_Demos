@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-rm *.pgm
-rm -rf changes_false
-rm -rf changes_true
+if [ -z "$(ls *.pgm)" ]; then rm *.pgm; fi
+if [ -d changes_false ]; then rm -rf changes_false; fi
+if [ -d changes_true ]; then rm -rf changes_true; fi
 
 echo ">>>> with changes"
 
@@ -26,5 +26,5 @@ time cs39 run 1 8 > changes_false/out.txt || exit 1
 mv *.pgm changes_false/
 
 
-echo ">>>> comparing"
-diff changes_true changes_false
+#echo ">>>> comparing"
+#diff changes_true changes_false

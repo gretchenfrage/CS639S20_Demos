@@ -11,6 +11,23 @@
 extern Timer timerLaplacian;
 extern Timer timerSaxpy;
 
+void ComputeLaplacian2(const float (&u)[XDIM][YDIM][ZDIM], float (&Lu)[XDIM][YDIM][ZDIM])
+{   
+#pragma omp parallel for
+    for (int i = 1; i < XDIM-1; i++)
+    for (int j = 1; j < YDIM-1; j++)
+    for (int k = 1; k < ZDIM-1; k++)
+        Lu[i][j][k] =
+            -6 * u[i][j][k]
+            + u[i+1][j][k]
+            + u[i-1][j][k]
+            + u[i][j+1][k]
+            + u[i][j-1][k]
+            + u[i][j][k+1]
+            + u[i][j][k-1];
+}
+
+
 void ConjugateGradients(
     CSRMatrix& matrix,
     CSRMatrix& L,
@@ -21,8 +38,17 @@ void ConjugateGradients(
     float (&z)[XDIM][YDIM][ZDIM],
     const bool writeIterations)
 {
+    bool changes = true;
+
     // Algorithm : Line 2
-    timerLaplacian.Restart(); ComputeLaplacian(matrix, x, z); timerLaplacian.Pause();
+    timerLaplacian.Restart();
+    if (changes) {
+        ComputeLaplacian2(x, z);
+    } else {
+        ComputeLaplacian(matrix, x, z);
+    }
+    timerLaplacian.Pause();
+    //timerLaplacian.Restart(); ComputeLaplacian(matrix, x, z); timerLaplacian.Pause();
     Saxpy(z, f, r, -1);
     float nu = Norm(r);
 
